@@ -1,0 +1,23 @@
+{
+  "folders": [
+    {
+      "path": ".."
+    }
+  ],
+  "settings": {
+    "yaml.customTags": [
+      "!Equals sequence",
+      "!FindInMap sequence",
+      "!GetAtt",
+      "!GetAZs",
+      "!ImportValue",
+      "!Join",
+      "!Join sequence",
+      "!Ref",
+      "!Select sequence",
+      "!Split sequence",
+      "!Sub"
+
+    ]
+  }
+}

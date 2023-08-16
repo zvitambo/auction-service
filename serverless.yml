@@ -1,0 +1,164 @@
+
+service: auction-service
+
+plugins:
+  - serverless-pseudo-parameters
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  memorySize: 256
+  stage: ${opt:stage, 'dev'}
+  region: eu-west-1
+  environment:
+    AUCTIONS_TABLE_NAME: ${self:custom.AuctionsTable.name}
+    MAIL_QUEUE_URL: ${self:custom.MailQueue.url}
+    AUCTIONS_BUCKET_NAME: ${self:custom.AuctionsBucket.name}
+  iamRoleStatements:
+    - Effect: Allow
+      Action: 
+        - dynamodb:PutItem
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:GetItem
+        - dynamodb:Query
+      Resource:
+        #- ${self:custom.AuctionsTable.arn}
+        -  Fn::Join: [ '', ['${self:custom.AuctionsTable.arn}', '', ''] ]
+        #- ${self:custom.AuctionsTable.arn}/index/statusAndEndDate       
+        #- {"Fn::Join": [ '/', ['${self:custom.AuctionsTable.arn}', 'index', 'statusAndEndDate'] ]} 
+        #- ${self:custom.AuctionsTable.arn}
+        #- !Join ['/', ['${self:custom.AuctionsTable.arn}', 'index', 'statusAndEndDate']] 
+        -  Fn::Join: [ '/', ['${self:custom.AuctionsTable.arn}', 'index', 'statusAndEndDate'] ]
+        #- ${self:custom.AuctionsTable.arn}/index/statusAndEndDate
+        #- !Join ['/', ['${self:custom.AuctionsTable.arn}', 'index', 'statusAndEndDate']] 
+        #- arn:aws:dynamodb:#{AWS::Region}:#{AWS::AccountId}:table/AuctionsTable
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+      Resource: ${self:custom.MailQueue.arn}
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+      Resource:  arn:aws:s3:::${self:custom.AuctionsBucket.name}/*
+
+resources:
+  Resources:
+    AuctionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: AuctionsTable-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: status
+            AttributeType: S
+          - AttributeName: endingAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: statusAndEndDate
+            KeySchema:
+              - AttributeName: status
+                KeyType: HASH
+              - AttributeName: endingAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+    AuctionsBucket:
+       Type: AWS::S3::Bucket
+       Properties:
+         BucketName: ${self:custom.AuctionsBucket.name}
+         PublicAccessBlockConfiguration:
+            BlockPublicAcls: false
+            BlockPublicPolicy: false
+         LifecycleConfiguration:
+           Rules:
+             - Id: ExpirePictures
+               Status: Enabled
+               ExpirationInDays: 1
+       
+
+    AuctionsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref AuctionsBucket
+        PolicyDocument:
+          Statement:
+            - Sid: PublicRead
+              Effect: Allow
+              Principal: '*'
+              Action:
+                - s3:GetObject
+              Resource:  arn:aws:s3:::${self:custom.AuctionsBucket.name}/*
+    
+              
+
+  
+functions:
+  createAuction:
+    handler: src/handlers/createAuction.handler
+    events:
+      - http:
+          method: POST
+          path: /auction
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  getAuctions:
+    handler: src/handlers/getAuctions.handler
+    events:
+      - http:
+          method: GET
+          path: /auctions
+          cors: true
+          # authorizer: ${self:custom.authorizer}
+  getAuction:
+    handler: src/handlers/getAuction.handler
+    events:
+      - http:
+          method: GET
+          path: /auction/{id}
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  placeBid:
+    handler: src/handlers/placeBid.handler
+    events:
+      - http:
+          method: Patch
+          path: /auction/{id}/bid
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  uploadAuctionPicture:
+    handler: src/handlers/uploadAuctionPicture.handler
+    events:
+      - http:
+          method: Patch
+          path: /auction/{id}/picture
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  processAuctions:
+    handler: src/handlers/processAuctions.handler
+    # events:
+    #   - schedule: rate(1 day)
+
+
+custom:
+  authorizer: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:auth-service-${self:provider.stage}-auth
+  AuctionsTable:
+    name: !Ref AuctionsTable
+    arn: !GetAtt AuctionsTable.Arn
+  MailQueue:
+    arn: ${cf:notification-service-${self:provider.stage}.MailQueueArn}
+    url: ${cf:notification-service-${self:provider.stage}.MailQueueUrl}
+  AuctionsBucket:
+    name: auctions-bucket-zvitambothomasjindudev101-${self:provider.stage}
+  bundle:
+    linting: false
+
+ 
+          
+           
+    
