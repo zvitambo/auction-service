@@ -1,8 +1,8 @@
 {
   "name": "auction-service",
   "version": "1.0.0",
-  "description": "Codingly template for Serverless Framework projects",
-  "author": "Ariel Weinberger <ariel@codingly.io>",
+  "description": "",
+  "author": "",
   "license": "MIT",
   "type": "module",
   "devDependencies": {

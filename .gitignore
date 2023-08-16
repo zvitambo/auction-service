@@ -1,6 +1,7 @@
 # package directories
 node_modules
 jspm_packages
+README_BACKUP.md
 
 # Serverless directories
 .serverless
